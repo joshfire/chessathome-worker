@@ -1,0 +1,14 @@
+Chess@Home worker!
+------------------
+
+About: http://chessathome.org/
+
+Installation
+------------
+
+$ [sudo] npm install chessathome-worker -g
+
+Usage
+-----
+
+$ chessathome-worker
