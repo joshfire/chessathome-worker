@@ -1,4 +1,3 @@
-//2011-08-28 16:28:27.672152
 
 // 
 // Board code
@@ -1524,7 +1523,12 @@ var g_needsReset = true;
 
 
 onmessage = function (e) {
-
+    
+    // onmessage is disabled in UI board mode because of conflicts with the google +1 button
+    if (typeof UI_ENGINE_MODE!="undefined" && UI_ENGINE_MODE=="board") {
+      return;
+    }
+    
     e = e.data;
     if (e.type == 'go' || g_needsReset) {
         ResetGame();
@@ -1553,6 +1557,8 @@ onmessage = function (e) {
               type:'resolve'
             , status:'ok'
             , fen:GetFen()
+            , moveOpt:GenerateValidMoves().length
+            , inCheck:g_inCheck
             });
           } else {
             throw new Exception('Coulnt makemove');

@@ -8,7 +8,7 @@ var ENGINE_PATH = './engine.js'
 
 var CLI_PROCESSES = 4;
 
-exports.start = function(master,id) {
+exports.start = function(master, id) {
   
   var emitter = new EventEmitter;
   var w = new Worker(path.resolve(__dirname, ENGINE_PATH));
@@ -16,10 +16,9 @@ exports.start = function(master,id) {
   var client = dnode(function() {
     var self = this;
     
-    self.role="worker";
+    self.role = 'worker';
 
     w.onmessage = function(e) {
-      // LATEST_DATA = e.data;
       emitter.emit('result', e.data);
     };
 
@@ -30,7 +29,7 @@ exports.start = function(master,id) {
     self.name = 'Worker '+id;
 
     this.compute = function (fen, timeout) {
-      console.log('[' + self.name + '] Starting to work on ' + fen);
+      console.log('[' + self.name + '] Work on ' + fen+' for '+timeout+'ms');
       w.postMessage({type: 'position', data: fen});
       w.postMessage({type: 'search', data: timeout});
     };
@@ -40,33 +39,34 @@ exports.start = function(master,id) {
     };
   });
   
-  console.log("trying to connect with",master);
+  console.log('Trying to connect with', master);
   client.connect(master, function(remote, conn) {
 
-    function reconnect() {
-      console.log('Calling reconnect()');
-      conn.reconnect(1000, function (err) {
-        if (err) {
-          console.error(err);
-          reconnect();
-        } else {
-          console.warn('loopsiloppsiloo');
-        }
-      });
-    }
+    // Waiting confirmation from SubStack
+    // function reconnect() {
+    //   console.log('Calling reconnect()');
+    //   conn.reconnect(1000, function (err) {
+    //     if (err) {
+    //       console.error(err);
+    //       reconnect();
+    //     } else {
+    //       console.warn('loopsiloppsiloo');
+    //     }
+    //   });
+    // }
 
     conn.on('ready', function () {
-      console.log("Connected, waiting for jobs");
+      console.log('Connected, waiting for jobs');
     });
 
     conn.on('timeout', function () {
       console.log('Timeout with the server.');
-      reconnect();
+      // reconnect();
     });
 
     conn.on('end', function () {
       console.log('Server probably crashed.');
-      reconnect();
+      // reconnect();
     });
 
     emitter.on('result', function(data) {
@@ -83,7 +83,7 @@ exports.start = function(master,id) {
 
 if (require.main === module) {
   for (var i=0;i<CLI_PROCESSES;i++) {
-    exports.start({host: process.ARGV[2] || 'chessathome.no.de', port: process.ARGV[3] || 3000, reconnect: 100}, 'cli-' + i);
+    exports.start({host: process.ARGV[2] || 'joshfire.nko2.nodeknockout.com', port: process.ARGV[3] || 8000, reconnect: 5000}, 'cli-' + i);
   }
 }
 //TODO stop ?
