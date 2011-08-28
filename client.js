@@ -6,7 +6,7 @@ var ENGINE_PATH = './engine.js'
   , path = require('path')
   , Worker = require('webworker').Worker;
 
-var CLI_PROCESSES = 5;
+var CLI_PROCESSES = 4;
 
 exports.start = function(master,id) {
   
