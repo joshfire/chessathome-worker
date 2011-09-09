@@ -10,7 +10,7 @@
   },
   "main": "client.js",
   "engines": {
-    "node": "0.4.x"
+    "node": ">0.4.x"
   },
   "bin": {
     "chessathome-worker": "./client.js"
