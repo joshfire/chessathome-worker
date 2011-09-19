@@ -1535,9 +1535,9 @@ onmessage = function (e) {
         g_needsReset = false;
         if (e.type == 'go') return;
     }
-    
     // Position
     if (e.type == 'position') {
+
         ResetGame();
         InitializeFromFen(e.data);
     }
@@ -1550,11 +1550,35 @@ onmessage = function (e) {
         ResetGame();
         InitializeFromFen(mv[1]);
 
+        if (!mv[0]) {
+          postMessage({
+            type:'resolve'
+          , status:'ok'
+          , fen:GetFen()
+          , moveOpt:GenerateValidMoves().length
+          , inCheck:g_inCheck
+          });
+          return;
+        }
+
         try {
 
-          if (MakeMove(GetMoveFromString(mv[0]))) {
+          var moves = mv[0];
+          var san = [];
+          if (typeof mv[0]=="string") {
+            moves = [mv[0]];
+          }
+
+          var valid = true;
+          moves.forEach(function(move) {
+            san.push(GetMoveSAN(GetMoveFromString(move)));
+            valid = valid && MakeMove(GetMoveFromString(move));
+          });
+          
+          if (valid) {
             postMessage({
               type:'resolve'
+            , san:san
             , status:'ok'
             , fen:GetFen()
             , moveOpt:GenerateValidMoves().length
@@ -1570,15 +1594,15 @@ onmessage = function (e) {
             type:'resolve'
           , status:'nok'
           , message:e
+          
           });
         }
         
     }
     // Search
     else if (e.type == "search") {
-
+      
         g_timeout = parseInt(e.data, 10);
-        
         Search(FinishMoveLocalTesting, 99, FinishPlyCallback);
     }
     // Analyze
@@ -1643,30 +1667,33 @@ onmessage = function (e) {
 
 
 function FinishPlyCallback(bestMove, value, timeTaken, ply) {
-    postMessage({ type:'pv', data:BuildPVMessage(bestMove, value, timeTaken, ply)});
+    postMessage({ type:'pv', data:BuildPVMessage(bestMove, value, timeTaken, ply), bestMove:bestMove });
 }
 
 function FinishMoveLocalTesting(bestMove, value, timeTaken, ply) {
-  //console.log('FINAL', bestMove, value, ply)
-  //console.log("BOARD", g_board)
-    if (bestMove != null) {
-      
-        //Y U NO WORK?
-        //var pv = PVFromHash(bestMove,15);
+  if (bestMove != null && bestMove != 0) {
+    
+    //must be made before MakeMove
+    var san = GetMoveSAN(bestMove);
+    
+    MakeMove(bestMove);
 
-        MakeMove(bestMove);
-        postMessage({ type:'move', data:FormatMove(bestMove),value:value,ply:ply}); //,totalNodes:totalNodes 
-    }
+    postMessage({ type:'move', data:FormatMove(bestMove),san:san, value:value, ply:ply}); //,totalNodes:totalNodes 
+  } else {
+    postMessage({ type:'move', data:bestMove,san:"", value:value, ply:ply}); //,totalNodes:totalNodes 
+  }
+  //Y U NO WORK?
+  //var pv = PVFromHash(bestMove,15);
 }
 
 
 
 if (typeof module !== 'undefined' && module.exports) {
-
+  exports.onmessage = onmessage;
+  exports.setCallback = function(cb) {
+    postMessage = cb;
+  }
 }
-
-
-
 
 //
 // Searching code
@@ -1684,44 +1711,54 @@ function Search(finishMoveCallback, maxPly, finishPlyCallback) {
     g_qNodeCount = 0;
     g_searchValid = true;
     
-    var bestMove = 0;
+    var bestMove = 1;
     var value;
     
     //console.log('WAZAAAAAAA')
     g_startTime = (new Date()).getTime();
 
+    try {
+    if (!GenerateValidMoves().length) {
+      if (finishMoveCallback != null)
+        finishMoveCallback(0, null, null, null);
+      return;
+    }
+      } catch (e) { postMessage({ 'e':e })}
+
+
     var i;
-    for (i = 1; i <= maxPly && g_searchValid; i++) {
+    for (i = 1; i <= maxPly && g_searchValid && bestMove; i++) {
+      try {
         var tmp = AlphaBeta(i, 0, alpha, beta);
-        if (!g_searchValid) break;
+        if (g_searchValid) {
 
-        value = tmp;
+          value = tmp;
 
-        if (value > alpha && value < beta) {
+          if (value > alpha && value < beta) {
             alpha = value - 500;
             beta = value + 500;
 
             if (alpha < g_minEval) alpha = g_minEval;
             if (beta > g_maxEval) beta = g_maxEval;
-        } else if (alpha != g_minEval) {
+          } else if (alpha != g_minEval) {
             alpha = g_minEval;
             beta = g_maxEval;
             i--;
-        }
+          }
 
-        if (g_hashTable[g_hashKeyLow & g_hashMask] != null) {
+          if (g_hashTable[g_hashKeyLow & g_hashMask] != null) {
             bestMove = g_hashTable[g_hashKeyLow & g_hashMask].bestMove;
-        }
+          }
 
-        //console.log('bm', bestMove, alpha, '<', value, '<', beta, g_hashTable[g_hashKeyLow & g_hashMask])
-        if (finishPlyCallback != null) {
+
+        if (finishPlyCallback != null) 
             finishPlyCallback(bestMove, value, (new Date()).getTime() - g_startTime, i);
         }
+      } catch (e) { postMessage({ 'e':e })}
+
     }
 
     if (finishMoveCallback != null) {
-      //console.log('FINAL', JSON.stringify(g_board))
-      //console.log('bm', bestMove, 'value', value, 'alpha', alpha, 'beta', beta)
       finishMoveCallback(bestMove, value, (new Date()).getTime() - g_startTime, i - 1);
     }
 }
@@ -2633,13 +2670,13 @@ function GetMoveSAN(move, validMoves) {
 		else if (move & g_moveflagPromoteQueen) result += "=Q";
 		else result += "=R";
 	}
-
+	
 	MakeMove(move);
 	if (g_inCheck) {
 	    result += GenerateValidMoves().length == 0 ? "#" : "+";
 	}
 	UnmakeMove(move);
-
+	
 	return result;
 }
 
