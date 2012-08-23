@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/joshfire/chessathome-worker.png)](http://travis-ci.org/joshfire/chessathome-worker)
 Chess@home worker!
 ------------------
 
